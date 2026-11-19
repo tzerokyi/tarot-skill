@@ -163,12 +163,10 @@ pub enum TimeFactor {
 
 impl TimeFactor {
     pub const fn from_hour(hour: u32) -> Self {
-        if hour >= 6 && hour < 12 {
-            Self::Morning
-        } else if hour >= 12 && hour < 18 {
-            Self::Afternoon
-        } else {
-            Self::Night
+        match hour {
+            6..=11 => Self::Morning,
+            12..=17 => Self::Afternoon,
+            _ => Self::Night,
         }
     }
 

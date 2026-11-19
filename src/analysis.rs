@@ -1,5 +1,5 @@
 //! Conservative, deterministic relation hints. They are interpretation aids,
- //! not predictions or claims that every possible pair has a unique meaning.
+//! not predictions or claims that every possible pair has a unique meaning.
 
 use serde::Serialize;
 
@@ -98,7 +98,7 @@ pub fn relate(left: u8, right: u8) -> Option<Relation> {
     let b = card_info(right)?;
 
     let pair = (left.min(right), left.max(right));
-    let (source, pattern, description): (&str, &str, String) =
+    let (source, pattern, description): (&'static str, &'static str, String) =
         if let Some(meaning) = classic_pair(pair) {
             ("classic", "transition", meaning.to_owned())
         } else if let (Some(a_num), Some(b_num)) = (a.major_number, b.major_number) {

@@ -51,11 +51,13 @@ jobs:
           test -x "$binary"
           "$binary" --help
           "$binary" doctor --json | grep -q '"status": "ok"'
-          "$binary" deck list --json | grep -q '"name": "世界"'
+          deck=$("$binary" deck list --json)
+          [[ "$deck" == *'"name": "世界"'* ]]
           first=$("$binary" draw --spread three --seed 123 --time-factor night --json)
           second=$("$binary" draw --spread three --seed 123 --time-factor night --json)
           test "$first" = "$second"
-          "$binary" analyze --spread celtic --seed 123 --time-factor night --json | grep -q '"major_percent"'
+          analysis=$("$binary" analyze --spread celtic --seed 123 --time-factor night --json)
+          [[ "$analysis" == *'"major_percent"'* ]]
           if "$binary" draw --spread bogus >/dev/null 2>&1; then
             echo "::error::Invalid spread was accepted"
             exit 1

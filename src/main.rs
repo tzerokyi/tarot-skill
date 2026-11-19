@@ -240,7 +240,7 @@ fn main() -> ExitCode {
                 ExitCode::SUCCESS
             }
             Err(err) => {
-                eprintln!("{{\"error\":{{\"code\":\"serialization_error\",\"message\":{}}}}}", json!(err.to_string()));
+                eprintln!("{}", json!({"error":{"code":"serialization_error","message":err.to_string()}}));
                 ExitCode::from(1)
             }
         },

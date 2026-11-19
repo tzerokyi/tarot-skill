@@ -45,7 +45,7 @@ let request = DrawRequest::new(Spread::Three)
     .with_time_factor(TimeFactor::Night);
 let reading = draw(&request);
 let analysis = analyze(&reading)?;
-# Ok::<(), tarot_core::TarotError>(())
+let _ = analysis;
 ```
 
 All domain operations are exposed independently of the CLI. A future optional MCP/stdin adapter should consume these functions rather than implement a second tarot engine.
