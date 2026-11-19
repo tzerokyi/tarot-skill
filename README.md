@@ -1,62 +1,63 @@
-# 🔮 Tarot Skill
+# 🔮 tarot-skill — Native Rust tarot core
 
-AI 塔罗占卜 Agent Skill，为 Cursor / Claude Code / OpenClaw 等 AI agent 提供专业级塔罗解读能力。
+기존 Python `scripts/draw.py`를 **순수 네이티브 Rust 라이브러리 + CLI**로 이식한 프로젝트. UI/웹/서버/파이썬 런타임 없음. 이후 crates.io 배포 또는 MCP 어댑터 추가가 쉽도록 API를 분리했다.
 
-## 特性
+中文：原来的塔罗抽牌脚本已迁移为 Rust 核心库 `tarot_core` + 命令行程序 `tarot`。解读规则仍保存在 `SKILL.md` 和 `references/`。
 
-- **78 张完整牌义**：韦特 + 托特 + 现代心理塔罗三大系统融合，每张大阿卡纳含心理原型与托特视角
-- **6 种牌阵**：单张 / 三牌阵 / 五牌阵 / 月亮牌阵 / 马蹄形 / 凯尔特十字
-- **牌间关系理论体系**：愚人之旅 / 数字旅程 / 牌性（Elemental Dignities）/ 对位牌 / 宫廷牌关系网 / 生命之树，覆盖所有可能的牌对组合
-- **真随机抽牌脚本**：Python 脚本 `scripts/draw.py`，密码学安全随机源，位置权重、时段因子、正逆位概率全内置
-- **解读方法论**：四维透镜模型 / 牌间关系推理 / 叙事弧串联 / 反巴纳姆检验
-- **语言约束与安全边界**：禁用巴纳姆废话清单、自伤信号处理协议
+## Quick start
 
-## 文件结构
-
-```
-SKILL.md                        # 主技能文档（工作流 + 解读方法论 + 输出格式）
-references/
-  cards.md                      # 78 张牌义（~1100 行）
-  card-relations.md             # 牌间关系理论体系（6 套理论 / 2 层架构）
-  combinations.md               # 经典牌间组合 + 花色集中/密度规则
-  spreads.md                    # 6 种牌阵布局与解读顺序
-scripts/
-  draw.py                       # 真随机抽牌脚本（Python 3）
+```sh
+cargo run -- draw --spread single --seed 42 --time-factor morning
+cargo run -- draw --spread three --question "事业方向" --seed 42 --time-factor night --json
+cargo run -- analyze --spread celtic --seed 42 --time-factor night
+cargo run -- deck list --json
+cargo run -- deck show 0
+cargo run -- spreads list
+cargo run -- doctor --json
+cargo test
 ```
 
-## 快速使用
+Install a local native CLI: `cargo install --path .`. Then use `tarot draw ...`. Default output is valid JSON; errors are JSON on stderr, with a nonzero exit code.
 
-### 作为 Agent Skill 安装
+For scripted agents, pass **both** `--seed` and `--time-factor` to make a reading reproducible. Otherwise the seed is sampled from OS entropy and the time factor follows the local hour. The deterministic RNG is ChaCha20; the same numeric seed **does not** reproduce Python's Mersenne Twister card sequence.
 
-将本仓库内容放入 agent 的 skills 目录：
+### CLI
 
-```bash
-# Cursor
-cp -r . ~/.cursor/skills/tarot/
+| Command | Description |
+| --- | --- |
+| `draw --spread <id>` | Weighted, no-replacement draw with upright/reversed orientations |
+| `analyze --spread <id>` | Draw and report element/suit/major ratios and adjacent card relations |
+| `analyze --input reading.json` | Validate/analyze an existing JSON draw (`-` for stdin) |
+| `deck list / show <id|name>` | Inspect all 78 cards or one card |
+| `spreads list / show <id>` | Inspect the 6 spreads and ordered positions |
+| `doctor` | Headless runtime/capability diagnostic |
 
-# Claude Code
-cp -r . ~/.claude/skills/tarot/
+Spread IDs: `single`, `three`, `diamond`, `moon`, `horseshoe`, `celtic`.
 
-# OpenClaw agents
-cp -r . ~/.agents/skills/tarot/
+### Rust library
+
+```rust
+use tarot_core::{analyze, draw, DrawRequest, Spread, TimeFactor};
+
+let request = DrawRequest::new(Spread::Three)
+    .with_question("事业")
+    .with_seed(42)
+    .with_time_factor(TimeFactor::Night);
+let reading = draw(&request);
+let analysis = analyze(&reading)?;
+# Ok::<(), tarot_core::TarotError>(())
 ```
 
-### 抽牌脚本
+All domain operations are exposed independently of the CLI. A future optional MCP/stdin adapter should consume these functions rather than implement a second tarot engine.
 
-```bash
-# 单张今日指引
-python3 scripts/draw.py --spread single
+## Design and migration notes
 
-# 三牌阵 + 问题
-python3 scripts/draw.py --spread three --question "事业方向"
+- `src/catalog.rs`: 78-card canonical catalog, suits/elements, 6 spread definitions.
+- `src/lib.rs`: typed requests/results, secure seeded draws, external JSON validation.
+- `src/analysis.rs`: adjacent relations from A1/A2/A3/B1/B2/B3 plus known classic pairs, suit and major ratios.
+- `src/main.rs`: thin CLI and machine-readable errors.
+- `tests/`: binary-level smoke and invalid-input checks.
+- `SKILL.md`, `references/`: interpretation/safety workflow. The engine returns **structured signals, not certain predictions**.
+- `docs/RUST_MIGRATION.md`: exact parity matrix and intentionally different RNG behavior.
 
-# 凯尔特十字
-python3 scripts/draw.py --spread celtic --question "感情"
-
-# 指定种子复现
-python3 scripts/draw.py --spread three --question "事业" --seed 42
-```
-
-## 许可
-
-MIT
+This repository declares MIT in its original README; see `LICENSE`. No build products, caches or native executables are committed. Rust checks/builds run through the trusted self-hosted CI workflow on the staging branch. A Windows target has not yet been verified.

@@ -1,0 +1,68 @@
+name: Native Rust core
+
+on:
+  push:
+    branches:
+      - main
+      - feat/native-rust-core-cli
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/rust.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tarot-native-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '12'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: false
+      - name: Format, strict lint, tests, release build and headless smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:/home/agent/.cargo/bin:$PATH"
+          export CARGO_TARGET_DIR="$HOME/.cache/tarot-skill/target"
+          echo "source=$GITHUB_SHA rust=$(rustc --version) jobs=$CARGO_BUILD_JOBS"
+          cargo fmt --all
+          if ! git diff --exit-code -- src tests; then
+            echo "::error::Commit the exact rustfmt output to the staging branch."
+            exit 1
+          fi
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
+          cargo build --release
+          binary="$CARGO_TARGET_DIR/release/tarot"
+          test -x "$binary"
+          "$binary" --help
+          "$binary" doctor --json | grep -q '"status": "ok"'
+          "$binary" deck list --json | grep -q '"name": "世界"'
+          first=$("$binary" draw --spread three --seed 123 --time-factor night --json)
+          second=$("$binary" draw --spread three --seed 123 --time-factor night --json)
+          test "$first" = "$second"
+          "$binary" analyze --spread celtic --seed 123 --time-factor night --json | grep -q '"major_percent"'
+          if "$binary" draw --spread bogus >/dev/null 2>&1; then
+            echo "::error::Invalid spread was accepted"
+            exit 1
+          fi
+          root="$HOME/tarot-builds"
+          install -Dm755 "$binary" "$root/$GITHUB_SHA/tarot"
+          (cd "$root" && ln -sfn "$GITHUB_SHA" latest)
+          echo "LOCAL_NATIVE_BINARY=$root/$GITHUB_SHA/tarot"
+          echo "LOCAL_NATIVE_LATEST=$root/latest/tarot"
+          sha256sum "$root/$GITHUB_SHA/tarot"
